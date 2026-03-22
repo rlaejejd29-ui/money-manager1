@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "./supabase";
 
 export default function App() {
   const [menu, setMenu] = useState("manage");
-
-  const [list, setList] = useState(() => {
-    const saved = localStorage.getItem("money-list");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [list, setList] = useState([]);
 
   const [text, setText] = useState("");
   const [amount, setAmount] = useState("");
@@ -27,6 +24,27 @@ export default function App() {
   const [reportMonth, setReportMonth] = useState("10");
 
   const [editId, setEditId] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    const { data, error } = await supabase
+      .from("money")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.log(error);
+      alert("데이터 불러오기 실패");
+      return;
+    }
+
+    setList(data || []);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const resetForm = () => {
     setText("");
@@ -35,56 +53,75 @@ export default function App() {
     setType("지출");
     setCategory("식비");
     setPayment("현대카드");
+    setYearInput("2026");
+    setMonthInput("01");
+    setDayInput("01");
     setEditId(null);
   };
 
-  const addItem = () => {
+  const addItem = async () => {
     if (!amount) return;
 
     const date = `${yearInput}-${monthInput}-${dayInput}`;
+    setLoading(true);
 
     if (editId) {
-      setList((prev) =>
-        prev.map((item) =>
-          item.id === editId
-            ? {
-                ...item,
-                text,
-                amount: Number(amount),
-                date,
-                type,
-                category,
-                payment,
-                note,
-              }
-            : item
-        )
-      );
+      const { error } = await supabase
+        .from("money")
+        .update({
+          date,
+          type,
+          category,
+          payment,
+          content: text,
+          amount: Number(amount),
+          memo: note,
+        })
+        .eq("id", editId);
+
+      setLoading(false);
+
+      if (error) {
+        console.log(error);
+        alert("수정 실패");
+        return;
+      }
+
+      await fetchData();
       resetForm();
       return;
     }
 
-    const newItem = {
-      id: Date.now(),
-      text,
-      amount: Number(amount),
-      date,
-      type,
-      category,
-      payment,
-      note,
-    };
+    const { error } = await supabase.from("money").insert([
+      {
+        date,
+        type,
+        category,
+        payment,
+        content: text,
+        amount: Number(amount),
+        memo: note,
+      },
+    ]);
 
-    setList((prev) => [newItem, ...prev]);
+    setLoading(false);
+
+    if (error) {
+      console.log(error);
+      alert("저장 실패");
+      return;
+    }
+
+    await fetchData();
     resetForm();
   };
 
   const startEdit = (item) => {
     const [y, m, d] = item.date.split("-");
     setEditId(item.id);
-    setText(item.text || "");
+    setText(item.content || "");
     setAmount(String(item.amount ?? ""));
-    setNote(item.note || "");
+    setNote(item.memo || "");
     setYearInput(y);
     setMonthInput(m);
     setDayInput(d);
@@ -94,21 +131,32 @@ export default function App() {
     setMenu("manage");
   };
 
-  const deleteItem = (id) => {
-    setList((prev) => prev.filter((item) => item.id !== id));
+  const deleteItem = async (id) => {
+    const ok = window.confirm("삭제할까요?");
+    if (!ok) return;
+
+    const { error } = await supabase.from("money").delete().eq("id", id);
+
+    if (error) {
+      console.log(error);
+      alert("삭제 실패");
+      return;
+    }
+
+    await fetchData();
     if (editId === id) resetForm();
   };
 
   const totalExpense = useMemo(() => {
     return list
       .filter((i) => i.type === "지출")
-      .reduce((sum, i) => sum + i.amount, 0);
+      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
   }, [list]);
 
   const totalIncome = useMemo(() => {
     return list
       .filter((i) => i.type === "수입")
-      .reduce((sum, i) => sum + i.amount, 0);
+      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
   }, [list]);
 
   const filteredList = useMemo(() => {
@@ -132,13 +180,13 @@ export default function App() {
   const reportIncome = useMemo(() => {
     return reportList
       .filter((item) => item.type === "수입")
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   }, [reportList]);
 
   const reportExpense = useMemo(() => {
     return reportList
       .filter((item) => item.type === "지출")
-      .reduce((sum, item) => sum + item.amount, 0);
+      .reduce((sum, item) => sum + Number(item.amount || 0), 0);
   }, [reportList]);
 
   const reportProfit = reportIncome - reportExpense;
@@ -147,7 +195,7 @@ export default function App() {
     const map = {};
     reportList.forEach((item) => {
       if (item.type === "지출") {
-        map[item.category] = (map[item.category] || 0) + item.amount;
+        map[item.category] = (map[item.category] || 0) + Number(item.amount || 0);
       }
     });
 
@@ -160,10 +208,6 @@ export default function App() {
     if (reportCategoryTable.length === 0) return 0;
     return Math.max(...reportCategoryTable.map((item) => item.amount));
   }, [reportCategoryTable]);
-
-  useEffect(() => {
-    localStorage.setItem("money-list", JSON.stringify(list));
-  }, [list]);
 
   return (
     <div style={container}>
@@ -314,8 +358,8 @@ export default function App() {
             />
 
             <div style={{ display: "flex", gap: 10 }}>
-              <button onClick={addItem} style={button}>
-                {editId ? "수정 저장" : "추가"}
+              <button onClick={addItem} style={button} disabled={loading}>
+                {loading ? "저장 중..." : editId ? "수정 저장" : "추가"}
               </button>
               {editId && (
                 <button onClick={resetForm} style={subButton}>
@@ -346,7 +390,7 @@ export default function App() {
                   <td style={td}>{item.type}</td>
                   <td style={td}>{item.category}</td>
                   <td style={td}>{item.payment}</td>
-                  <td style={td}>{item.text || "-"}</td>
+                  <td style={td}>{item.content || "-"}</td>
                   <td
                     style={{
                       ...td,
@@ -355,9 +399,9 @@ export default function App() {
                       fontWeight: "bold",
                     }}
                   >
-                    {item.amount.toLocaleString()}원
+                    {Number(item.amount).toLocaleString()}원
                   </td>
-                  <td style={td}>{item.note || "-"}</td>
+                  <td style={td}>{item.memo || "-"}</td>
                   <td style={td}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
                       <button onClick={() => startEdit(item)} style={editButton}>
@@ -506,7 +550,7 @@ export default function App() {
                       <td style={td}>{item.type}</td>
                       <td style={td}>{item.category}</td>
                       <td style={td}>{item.payment}</td>
-                      <td style={td}>{item.text || "-"}</td>
+                      <td style={td}>{item.content || "-"}</td>
                       <td
                         style={{
                           ...td,
@@ -515,9 +559,9 @@ export default function App() {
                           fontWeight: "bold",
                         }}
                       >
-                        {item.amount.toLocaleString()}원
+                        {Number(item.amount).toLocaleString()}원
                       </td>
-                      <td style={td}>{item.note || "-"}</td>
+                      <td style={td}>{item.memo || "-"}</td>
                     </tr>
                   ))
                 )}
