@@ -1,10 +1,11 @@
-import React from 'react'
+import React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
   const [menu, setMenu] = useState("manage");
   const [list, setList] = useState([]);
+  const [scheduleList, setScheduleList] = useState([]);
 
   const [text, setText] = useState("");
   const [amount, setAmount] = useState("");
@@ -27,6 +28,16 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [scheduleTitle, setScheduleTitle] = useState("");
+  const [scheduleContent, setScheduleContent] = useState("");
+  const [scheduleYearInput, setScheduleYearInput] = useState("2026");
+  const [scheduleMonthInput, setScheduleMonthInput] = useState("01");
+  const [scheduleDayInput, setScheduleDayInput] = useState("01");
+  const [scheduleFilterYear, setScheduleFilterYear] = useState("");
+  const [scheduleFilterMonth, setScheduleFilterMonth] = useState("");
+  const [scheduleEditId, setScheduleEditId] = useState(null);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+
   const fetchData = async () => {
     const { data, error } = await supabase
       .from("money")
@@ -36,15 +47,32 @@ export default function App() {
 
     if (error) {
       console.log(error);
-      alert("데이터 불러오기 실패");
+      alert("자금 데이터 불러오기 실패");
       return;
     }
 
     setList(data || []);
   };
 
+  const fetchSchedules = async () => {
+    const { data, error } = await supabase
+      .from("schedules")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("id", { ascending: true });
+
+    if (error) {
+      console.log(error);
+      alert("일정 데이터 불러오기 실패");
+      return;
+    }
+
+    setScheduleList(data || []);
+  };
+
   useEffect(() => {
     fetchData();
+    fetchSchedules();
   }, []);
 
   const resetForm = () => {
@@ -58,6 +86,15 @@ export default function App() {
     setMonthInput("01");
     setDayInput("01");
     setEditId(null);
+  };
+
+  const resetScheduleForm = () => {
+    setScheduleTitle("");
+    setScheduleContent("");
+    setScheduleYearInput("2026");
+    setScheduleMonthInput("01");
+    setScheduleDayInput("01");
+    setScheduleEditId(null);
   };
 
   const addItem = async () => {
@@ -117,6 +154,59 @@ export default function App() {
     resetForm();
   };
 
+  const addSchedule = async () => {
+    if (!scheduleTitle.trim()) {
+      alert("일정 제목을 입력해주세요.");
+      return;
+    }
+
+    const date = `${scheduleYearInput}-${scheduleMonthInput}-${scheduleDayInput}`;
+    setScheduleLoading(true);
+
+    if (scheduleEditId) {
+      const { error } = await supabase
+        .from("schedules")
+        .update({
+          date,
+          title: scheduleTitle,
+          content: scheduleContent,
+        })
+        .eq("id", scheduleEditId);
+
+      setScheduleLoading(false);
+
+      if (error) {
+        console.log(error);
+        alert("일정 수정 실패");
+        return;
+      }
+
+      await fetchSchedules();
+      resetScheduleForm();
+      return;
+    }
+
+    const { error } = await supabase.from("schedules").insert([
+      {
+        date,
+        title: scheduleTitle,
+        content: scheduleContent,
+        is_done: false,
+      },
+    ]);
+
+    setScheduleLoading(false);
+
+    if (error) {
+      console.log(error);
+      alert("일정 저장 실패");
+      return;
+    }
+
+    await fetchSchedules();
+    resetScheduleForm();
+  };
+
   const startEdit = (item) => {
     const [y, m, d] = item.date.split("-");
     setEditId(item.id);
@@ -130,6 +220,17 @@ export default function App() {
     setCategory(item.category);
     setPayment(item.payment);
     setMenu("manage");
+  };
+
+  const startEditSchedule = (item) => {
+    const [y, m, d] = item.date.split("-");
+    setScheduleEditId(item.id);
+    setScheduleTitle(item.title || "");
+    setScheduleContent(item.content || "");
+    setScheduleYearInput(y);
+    setScheduleMonthInput(m);
+    setScheduleDayInput(d);
+    setMenu("schedule");
   };
 
   const deleteItem = async (id) => {
@@ -146,6 +247,37 @@ export default function App() {
 
     await fetchData();
     if (editId === id) resetForm();
+  };
+
+  const deleteSchedule = async (id) => {
+    const ok = window.confirm("일정을 삭제할까요?");
+    if (!ok) return;
+
+    const { error } = await supabase.from("schedules").delete().eq("id", id);
+
+    if (error) {
+      console.log(error);
+      alert("일정 삭제 실패");
+      return;
+    }
+
+    await fetchSchedules();
+    if (scheduleEditId === id) resetScheduleForm();
+  };
+
+  const toggleScheduleDone = async (item) => {
+    const { error } = await supabase
+      .from("schedules")
+      .update({ is_done: !item.is_done })
+      .eq("id", item.id);
+
+    if (error) {
+      console.log(error);
+      alert("완료 상태 변경 실패");
+      return;
+    }
+
+    await fetchSchedules();
   };
 
   const totalExpense = useMemo(() => {
@@ -210,6 +342,26 @@ export default function App() {
     return Math.max(...reportCategoryTable.map((item) => item.amount));
   }, [reportCategoryTable]);
 
+  const filteredSchedules = useMemo(() => {
+    const filtered = scheduleList.filter((item) => {
+      const [y, m] = item.date.split("-");
+      return (
+        (!scheduleFilterYear || y === scheduleFilterYear) &&
+        (!scheduleFilterMonth || m === scheduleFilterMonth)
+      );
+    });
+
+    return [...filtered].sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [scheduleList, scheduleFilterYear, scheduleFilterMonth]);
+
+  const undoneScheduleCount = useMemo(() => {
+    return scheduleList.filter((item) => !item.is_done).length;
+  }, [scheduleList]);
+
+  const doneScheduleCount = useMemo(() => {
+    return scheduleList.filter((item) => item.is_done).length;
+  }, [scheduleList]);
+
   return (
     <div style={container}>
       <h1 style={title}>📊 기업 자금 관리 시스템</h1>
@@ -227,20 +379,43 @@ export default function App() {
         >
           월별 리포트
         </button>
+        <button
+          onClick={() => setMenu("schedule")}
+          style={menu === "schedule" ? activeMenuButton : menuButton}
+        >
+          일정 관리
+        </button>
       </div>
 
-      <div style={{ display: "flex", gap: 20 }}>
-        <div style={cardBlue}>
-          총 수입
-          <br />
-          <b>{totalIncome.toLocaleString()}원</b>
+      {menu !== "schedule" && (
+        <div style={{ display: "flex", gap: 20 }}>
+          <div style={cardBlue}>
+            총 수입
+            <br />
+            <b>{totalIncome.toLocaleString()}원</b>
+          </div>
+          <div style={cardPink}>
+            총 지출
+            <br />
+            <b>{totalExpense.toLocaleString()}원</b>
+          </div>
         </div>
-        <div style={cardPink}>
-          총 지출
-          <br />
-          <b>{totalExpense.toLocaleString()}원</b>
+      )}
+
+      {menu === "schedule" && (
+        <div style={{ display: "flex", gap: 20 }}>
+          <div style={cardBlue}>
+            진행 중 일정
+            <br />
+            <b>{undoneScheduleCount}건</b>
+          </div>
+          <div style={cardPink}>
+            완료 일정
+            <br />
+            <b>{doneScheduleCount}건</b>
+          </div>
         </div>
-      </div>
+      )}
 
       {menu === "manage" && (
         <>
@@ -271,11 +446,7 @@ export default function App() {
 
           <div style={box}>
             <div style={{ display: "flex", gap: 10 }}>
-              <select
-                value={yearInput}
-                onChange={(e) => setYearInput(e.target.value)}
-                style={input}
-              >
+              <select value={yearInput} onChange={(e) => setYearInput(e.target.value)} style={input}>
                 {[2024, 2025, 2026].map((y) => (
                   <option key={y} value={String(y)}>
                     {y}
@@ -283,11 +454,7 @@ export default function App() {
                 ))}
               </select>
 
-              <select
-                value={monthInput}
-                onChange={(e) => setMonthInput(e.target.value)}
-                style={input}
-              >
+              <select value={monthInput} onChange={(e) => setMonthInput(e.target.value)} style={input}>
                 {[...Array(12)].map((_, i) => {
                   const m = String(i + 1).padStart(2, "0");
                   return (
@@ -298,11 +465,7 @@ export default function App() {
                 })}
               </select>
 
-              <select
-                value={dayInput}
-                onChange={(e) => setDayInput(e.target.value)}
-                style={input}
-              >
+              <select value={dayInput} onChange={(e) => setDayInput(e.target.value)} style={input}>
                 {[...Array(31)].map((_, i) => {
                   const d = String(i + 1).padStart(2, "0");
                   return (
@@ -397,8 +560,7 @@ export default function App() {
                   <td
                     style={{
                       ...td,
-                      backgroundColor:
-                        item.type === "지출" ? "#ffd6d6" : "#dbeafe",
+                      backgroundColor: item.type === "지출" ? "#ffd6d6" : "#dbeafe",
                       fontWeight: "bold",
                     }}
                   >
@@ -425,21 +587,13 @@ export default function App() {
       {menu === "report" && (
         <>
           <div style={{ display: "flex", gap: 10 }}>
-            <select
-              value={reportYear}
-              onChange={(e) => setReportYear(e.target.value)}
-              style={input}
-            >
+            <select value={reportYear} onChange={(e) => setReportYear(e.target.value)} style={input}>
               <option value="2024">2024</option>
               <option value="2025">2025</option>
               <option value="2026">2026</option>
             </select>
 
-            <select
-              value={reportMonth}
-              onChange={(e) => setReportMonth(e.target.value)}
-              style={input}
-            >
+            <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)} style={input}>
               {[...Array(12)].map((_, i) => {
                 const m = String(i + 1).padStart(2, "0");
                 return (
@@ -557,8 +711,7 @@ export default function App() {
                       <td
                         style={{
                           ...td,
-                          backgroundColor:
-                            item.type === "지출" ? "#ffd6d6" : "#dbeafe",
+                          backgroundColor: item.type === "지출" ? "#ffd6d6" : "#dbeafe",
                           fontWeight: "bold",
                         }}
                       >
@@ -571,6 +724,158 @@ export default function App() {
               </tbody>
             </table>
           </div>
+        </>
+      )}
+
+      {menu === "schedule" && (
+        <>
+          <div style={{ display: "flex", gap: 10 }}>
+            <select
+              value={scheduleFilterYear}
+              onChange={(e) => setScheduleFilterYear(e.target.value)}
+              style={input}
+            >
+              <option value="">년도</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+            </select>
+
+            <select
+              value={scheduleFilterMonth}
+              onChange={(e) => setScheduleFilterMonth(e.target.value)}
+              style={input}
+            >
+              <option value="">월</option>
+              {[...Array(12)].map((_, i) => {
+                const m = String(i + 1).padStart(2, "0");
+                return (
+                  <option key={m} value={m}>
+                    {i + 1}월
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div style={box}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <select
+                value={scheduleYearInput}
+                onChange={(e) => setScheduleYearInput(e.target.value)}
+                style={input}
+              >
+                {[2024, 2025, 2026].map((y) => (
+                  <option key={y} value={String(y)}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={scheduleMonthInput}
+                onChange={(e) => setScheduleMonthInput(e.target.value)}
+                style={input}
+              >
+                {[...Array(12)].map((_, i) => {
+                  const m = String(i + 1).padStart(2, "0");
+                  return (
+                    <option key={m} value={m}>
+                      {i + 1}월
+                    </option>
+                  );
+                })}
+              </select>
+
+              <select
+                value={scheduleDayInput}
+                onChange={(e) => setScheduleDayInput(e.target.value)}
+                style={input}
+              >
+                {[...Array(31)].map((_, i) => {
+                  const d = String(i + 1).padStart(2, "0");
+                  return (
+                    <option key={d} value={d}>
+                      {i + 1}일
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            <input
+              placeholder="일정 제목"
+              value={scheduleTitle}
+              onChange={(e) => setScheduleTitle(e.target.value)}
+              style={input}
+            />
+
+            <input
+              placeholder="일정 내용"
+              value={scheduleContent}
+              onChange={(e) => setScheduleContent(e.target.value)}
+              style={input}
+            />
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button onClick={addSchedule} style={button} disabled={scheduleLoading}>
+                {scheduleLoading ? "저장 중..." : scheduleEditId ? "수정 저장" : "일정 추가"}
+              </button>
+              {scheduleEditId && (
+                <button onClick={resetScheduleForm} style={subButton}>
+                  수정 취소
+                </button>
+              )}
+            </div>
+          </div>
+
+          <table style={table}>
+            <thead>
+              <tr>
+                <th style={th}>날짜</th>
+                <th style={th}>제목</th>
+                <th style={th}>내용</th>
+                <th style={th}>상태</th>
+                <th style={th}>관리</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredSchedules.length === 0 ? (
+                <tr>
+                  <td style={td} colSpan={5}>
+                    데이터가 없습니다.
+                  </td>
+                </tr>
+              ) : (
+                filteredSchedules.map((item) => (
+                  <tr key={item.id}>
+                    <td style={td}>{item.date}</td>
+                    <td style={{ ...td, fontWeight: "bold" }}>{item.title || "-"}</td>
+                    <td style={td}>{item.content || "-"}</td>
+                    <td style={td}>
+                      <button
+                        onClick={() => toggleScheduleDone(item)}
+                        style={item.is_done ? doneButton : pendingButton}
+                      >
+                        {item.is_done ? "완료" : "진행 중"}
+                      </button>
+                    </td>
+                    <td style={td}>
+                      <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
+                        <button onClick={() => startEditSchedule(item)} style={editButton}>
+                          수정
+                        </button>
+                        <button onClick={() => deleteSchedule(item.id)} style={deleteButton}>
+                          삭제
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </>
       )}
     </div>
@@ -595,6 +900,7 @@ const menuWrap = {
   display: "flex",
   gap: 10,
   marginBottom: 20,
+  flexWrap: "wrap",
 };
 
 const menuButton = {
@@ -666,6 +972,26 @@ const deleteButton = {
   borderRadius: 8,
   cursor: "pointer",
   color: "#fff",
+};
+
+const pendingButton = {
+  padding: "8px 12px",
+  background: "#fde68a",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+  color: "#374151",
+  fontWeight: "bold",
+};
+
+const doneButton = {
+  padding: "8px 12px",
+  background: "#bbf7d0",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+  color: "#166534",
+  fontWeight: "bold",
 };
 
 const cardBlue = {
