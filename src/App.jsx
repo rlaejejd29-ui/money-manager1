@@ -1,14 +1,12 @@
-import React from "react";
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
   const [menu, setMenu] = useState("manage");
-  const [list, setList] = useState([]);
-  const [scheduleList, setScheduleList] = useState([]);
-  const [salesList, setSalesList] = useState([]);
 
-  const [text, setText] = useState("");
+  const [salesList, setSalesList] = useState([]);
+  const [client, setClient] = useState("");
+  const [content, setContent] = useState("");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
 
@@ -16,418 +14,212 @@ export default function App() {
   const [monthInput, setMonthInput] = useState("01");
   const [dayInput, setDayInput] = useState("01");
 
-  const [type, setType] = useState("지출");
-  const [category, setCategory] = useState("식비");
-  const [payment, setPayment] = useState("현대카드");
-
-  const [year, setYear] = useState("");
-  const [selectedMonth, setSelectedMonth] = useState("");
-
-  const [reportYear, setReportYear] = useState("2025");
-  const [reportMonth, setReportMonth] = useState("10");
-
-  const [editId, setEditId] = useState(null);
-  const [loading, setLoading] = useState(false);
-
-  const today = new Date();
-  const todayYear = String(today.getFullYear());
-  const todayMonth = String(today.getMonth() + 1).padStart(2, "0");
-  const todayDay = String(today.getDate()).padStart(2, "0");
-  const todayString = `${todayYear}-${todayMonth}-${todayDay}`;
-
-  const [scheduleTitle, setScheduleTitle] = useState("");
-  const [scheduleContent, setScheduleContent] = useState("");
-  const [scheduleYearInput, setScheduleYearInput] = useState(todayYear);
-  const [scheduleMonthInput, setScheduleMonthInput] = useState(todayMonth);
-  const [scheduleDayInput, setScheduleDayInput] = useState(todayDay);
-  const [scheduleEditId, setScheduleEditId] = useState(null);
-  const [scheduleLoading, setScheduleLoading] = useState(false);
-
-  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(today.getMonth() + 1);
-  const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayString);
-
-  const [salesYearInput, setSalesYearInput] = useState(todayYear);
-  const [salesMonthInput, setSalesMonthInput] = useState(todayMonth);
-  const [salesDayInput, setSalesDayInput] = useState(todayDay);
-  const [salesClient, setSalesClient] = useState("");
-  const [salesItemName, setSalesItemName] = useState("");
-  const [salesAmount, setSalesAmount] = useState("");
-  const [salesMemo, setSalesMemo] = useState("");
-  const [salesEditId, setSalesEditId] = useState(null);
-  const [salesLoading, setSalesLoading] = useState(false);
-  const [salesFilterYear, setSalesFilterYear] = useState(todayYear);
-  const [salesFilterMonth, setSalesFilterMonth] = useState(todayMonth);
-
-  const fetchData = async () => {
-    const { data, error } = await supabase
-      .from("money")
-      .select("*")
-      .order("date", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.log(error);
-      alert("자금 데이터 불러오기 실패");
-      return;
-    }
-
-    setList(data || []);
-  };
-
-  const fetchSchedules = async () => {
-    const { data, error } = await supabase
-      .from("schedules")
-      .select("*")
-      .order("date", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.log(error);
-      alert("일정 데이터 불러오기 실패");
-      return;
-    }
-
-    setScheduleList(data || []);
-  };
+  const [reportYear, setReportYear] = useState("2026");
+  const [reportMonth, setReportMonth] = useState("01");
 
   const fetchSales = async () => {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("sales")
       .select("*")
-      .order("date", { ascending: true })
-      .order("id", { ascending: true });
-
-    if (error) {
-      console.log(error);
-      alert("매출 데이터 불러오기 실패");
-      return;
-    }
+      .order("date", { ascending: true });
 
     setSalesList(data || []);
   };
 
   useEffect(() => {
-    fetchData();
-    fetchSchedules();
     fetchSales();
   }, []);
 
-  const resetForm = () => {
-    setText("");
-    setAmount("");
-    setNote("");
-    setType("지출");
-    setCategory("식비");
-    setPayment("현대카드");
-    setYearInput("2026");
-    setMonthInput("01");
-    setDayInput("01");
-    setEditId(null);
-  };
-
-  const resetScheduleForm = () => {
-    setScheduleTitle("");
-    setScheduleContent("");
-    const [y, m, d] = selectedScheduleDate.split("-");
-    setScheduleYearInput(y);
-    setScheduleMonthInput(m);
-    setScheduleDayInput(d);
-    setScheduleEditId(null);
-  };
-
-  const resetSalesForm = () => {
-    setSalesYearInput(todayYear);
-    setSalesMonthInput(todayMonth);
-    setSalesDayInput(todayDay);
-    setSalesClient("");
-    setSalesItemName("");
-    setSalesAmount("");
-    setSalesMemo("");
-    setSalesEditId(null);
-  };
-
-  const addItem = async () => {
-    if (!amount) return;
+  const addSales = async () => {
+    if (!client || !amount) return;
 
     const date = `${yearInput}-${monthInput}-${dayInput}`;
-    setLoading(true);
 
-    if (editId) {
-      const { error } = await supabase
-        .from("money")
-        .update({
-          date,
-          type,
-          category,
-          payment,
-          content: text,
-          amount: Number(amount),
-          memo: note,
-        })
-        .eq("id", editId);
-
-      setLoading(false);
-
-      if (error) {
-        console.log(error);
-        alert("수정 실패");
-        return;
-      }
-
-      await fetchData();
-      resetForm();
-      return;
-    }
-
-    const { error } = await supabase.from("money").insert([
+    await supabase.from("sales").insert([
       {
         date,
-        type,
-        category,
-        payment,
-        content: text,
+        client,
+        content,
         amount: Number(amount),
         memo: note,
       },
     ]);
 
-    setLoading(false);
+    setClient("");
+    setContent("");
+    setAmount("");
+    setNote("");
 
-    if (error) {
-      console.log(error);
-      alert("저장 실패");
-      return;
-    }
-
-    await fetchData();
-    resetForm();
+    fetchSales();
   };
 
-  const addSchedule = async () => {
-    if (!scheduleTitle.trim()) {
-      alert("일정 제목을 입력해주세요.");
-      return;
-    }
+  const totalSales = useMemo(() => {
+    return salesList.reduce((sum, i) => sum + Number(i.amount || 0), 0);
+  }, [salesList]);
 
-    const date = `${scheduleYearInput}-${scheduleMonthInput}-${scheduleDayInput}`;
-    setScheduleLoading(true);
+  const monthlySales = useMemo(() => {
+    return salesList.filter((item) => {
+      const [y, m] = item.date.split("-");
+      return y === reportYear && m === reportMonth;
+    });
+  }, [salesList, reportYear, reportMonth]);
 
-    if (scheduleEditId) {
-      const { error } = await supabase
-        .from("schedules")
-        .update({
-          date,
-          title: scheduleTitle,
-          content: scheduleContent,
-        })
-        .eq("id", scheduleEditId);
+  const clientChart = useMemo(() => {
+    const map = {};
 
-      setScheduleLoading(false);
+    monthlySales.forEach((item) => {
+      map[item.client] =
+        (map[item.client] || 0) + Number(item.amount || 0);
+    });
 
-      if (error) {
-        console.log(error);
-        alert("일정 수정 실패");
-        return;
-      }
+    return Object.entries(map)
+      .map(([client, amount]) => ({ client, amount }))
+      .sort((a, b) => b.amount - a.amount);
+  }, [monthlySales]);
 
-      await fetchSchedules();
-      resetScheduleForm();
-      return;
-    }
+  const maxAmount =
+    clientChart.length > 0
+      ? Math.max(...clientChart.map((i) => i.amount))
+      : 0;
 
-    const { error } = await supabase.from("schedules").insert([
-      {
-        date,
-        title: scheduleTitle,
-        content: scheduleContent,
-        is_done: false,
-      },
-    ]);
+  return (
+    <div style={container}>
+      <h1 style={title}>💰 매출 관리 시스템</h1>
 
-    setScheduleLoading(false);
+      <div style={menuWrap}>
+        <button onClick={() => setMenu("manage")} style={menuButton}>
+          매출 입력
+        </button>
+        <button onClick={() => setMenu("report")} style={menuButton}>
+          매출 분석
+        </button>
+      </div>
 
-    if (error) {
-      console.log(error);
-      alert("일정 저장 실패");
-      return;
-    }
+      {/* 총 매출 카드 */}
+      <div style={card}>
+        총 매출<br />
+        <b>{totalSales.toLocaleString()}원</b>
+      </div>
 
-    await fetchSchedules();
-    resetScheduleForm();
-  };
+      {/* 매출 입력 */}
+      {menu === "manage" && (
+        <>
+          <div style={box}>
+            <div style={{ display: "flex", gap: 10 }}>
+              <select value={yearInput} onChange={(e) => setYearInput(e.target.value)}>
+                {[2025, 2026, 2027].map((y) => (
+                  <option key={y}>{y}</option>
+                ))}
+              </select>
 
-  const addSales = async () => {
-    if (!salesClient.trim() || !salesItemName.trim() || !salesAmount) {
-      alert("거래처명, 품목/내용, 금액을 입력해주세요.");
-      return;
-    }
+              <select value={monthInput} onChange={(e) => setMonthInput(e.target.value)}>
+                {[...Array(12)].map((_, i) => {
+                  const m = String(i + 1).padStart(2, "0");
+                  return <option key={m}>{m}</option>;
+                })}
+              </select>
 
-    const date = `${salesYearInput}-${salesMonthInput}-${salesDayInput}`;
-    setSalesLoading(true);
+              <select value={dayInput} onChange={(e) => setDayInput(e.target.value)}>
+                {[...Array(31)].map((_, i) => {
+                  const d = String(i + 1).padStart(2, "0");
+                  return <option key={d}>{d}</option>;
+                })}
+              </select>
+            </div>
 
-    if (salesEditId) {
-      const { error } = await supabase
-        .from("sales")
-        .update({
-          date,
-          client: salesClient,
-          item_name: salesItemName,
-          amount: Number(salesAmount),
-          memo: salesMemo,
-        })
-        .eq("id", salesEditId);
+            <input placeholder="거래처명" value={client} onChange={(e) => setClient(e.target.value)} />
+            <input placeholder="내용" value={content} onChange={(e) => setContent(e.target.value)} />
+            <input type="number" placeholder="금액" value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input placeholder="비고" value={note} onChange={(e) => setNote(e.target.value)} />
 
-      setSalesLoading(false);
+            <button onClick={addSales}>추가</button>
+          </div>
 
-      if (error) {
-        console.log(error);
-        alert("매출 수정 실패");
-        return;
-      }
+          <table style={table}>
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>거래처</th>
+                <th>내용</th>
+                <th>금액</th>
+                <th>비고</th>
+              </tr>
+            </thead>
+            <tbody>
+              {salesList.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.date}</td>
+                  <td>{item.client}</td>
+                  <td>{item.content}</td>
+                  <td>{item.amount.toLocaleString()}원</td>
+                  <td>{item.memo}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
 
-      await fetchSales();
-      resetSalesForm();
-      return;
-    }
+      {/* 분석 */}
+      {menu === "report" && (
+        <>
+          <div style={{ display: "flex", gap: 10 }}>
+            <select value={reportYear} onChange={(e) => setReportYear(e.target.value)}>
+              {[2025, 2026, 2027].map((y) => (
+                <option key={y}>{y}</option>
+              ))}
+            </select>
 
-    const { error } = await supabase.from("sales").insert([
-      {
-        date,
-        client: salesClient,
-        item_name: salesItemName,
-        amount: Number(salesAmount),
-        memo: salesMemo,
-      },
-    ]);
+            <select value={reportMonth} onChange={(e) => setReportMonth(e.target.value)}>
+              {[...Array(12)].map((_, i) => {
+                const m = String(i + 1).padStart(2, "0");
+                return <option key={m}>{m}</option>;
+              })}
+            </select>
+          </div>
 
-    setSalesLoading(false);
+          <div style={box}>
+            <h3>거래처별 매출</h3>
 
-    if (error) {
-      console.log(error);
-      alert("매출 저장 실패");
-      return;
-    }
+            {clientChart.map((item) => (
+              <div key={item.client}>
+                <div>
+                  {item.client} - {item.amount.toLocaleString()}원
+                </div>
 
-    await fetchSales();
-    resetSalesForm();
-  };
+                <div style={barBg}>
+                  <div
+                    style={{
+                      ...barFill,
+                      width: `${(item.amount / maxAmount) * 100}%`,
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
-  const startEdit = (item) => {
-    const [y, m, d] = item.date.split("-");
-    setEditId(item.id);
-    setText(item.content || "");
-    setAmount(String(item.amount ?? ""));
-    setNote(item.memo || "");
-    setYearInput(y);
-    setMonthInput(m);
-    setDayInput(d);
-    setType(item.type);
-    setCategory(item.category);
-    setPayment(item.payment);
-    setMenu("manage");
-  };
+/* 스타일 */
+const container = { padding: 40 };
+const title = { fontSize: 28 };
+const menuWrap = { display: "flex", gap: 10 };
+const menuButton = { padding: 10 };
+const box = { marginTop: 20, display: "grid", gap: 10 };
+const card = { background: "#dbeafe", padding: 20, marginTop: 20 };
+const table = { width: "100%", marginTop: 20 };
 
-  const startEditSchedule = (item) => {
-    const [y, m, d] = item.date.split("-");
-    setScheduleEditId(item.id);
-    setScheduleTitle(item.title || "");
-    setScheduleContent(item.content || "");
-    setScheduleYearInput(y);
-    setScheduleMonthInput(m);
-    setScheduleDayInput(d);
-    setSelectedScheduleDate(item.date);
-    setCalendarYear(Number(y));
-    setCalendarMonth(Number(m));
-    setMenu("schedule");
-  };
+const barBg = {
+  width: "100%",
+  height: 10,
+  background: "#eee",
+};
 
-  const startEditSales = (item) => {
-    const [y, m, d] = item.date.split("-");
-    setSalesEditId(item.id);
-    setSalesYearInput(y);
-    setSalesMonthInput(m);
-    setSalesDayInput(d);
-    setSalesClient(item.client || "");
-    setSalesItemName(item.item_name || "");
-    setSalesAmount(String(item.amount ?? ""));
-    setSalesMemo(item.memo || "");
-    setMenu("sales");
-  };
-
-  const deleteItem = async (id) => {
-    const ok = window.confirm("삭제할까요?");
-    if (!ok) return;
-
-    const { error } = await supabase.from("money").delete().eq("id", id);
-
-    if (error) {
-      console.log(error);
-      alert("삭제 실패");
-      return;
-    }
-
-    await fetchData();
-    if (editId === id) resetForm();
-  };
-
-  const deleteSchedule = async (id) => {
-    const ok = window.confirm("일정을 삭제할까요?");
-    if (!ok) return;
-
-    const { error } = await supabase.from("schedules").delete().eq("id", id);
-
-    if (error) {
-      console.log(error);
-      alert("일정 삭제 실패");
-      return;
-    }
-
-    await fetchSchedules();
-    if (scheduleEditId === id) resetScheduleForm();
-  };
-
-  const deleteSales = async (id) => {
-    const ok = window.confirm("매출 내역을 삭제할까요?");
-    if (!ok) return;
-
-    const { error } = await supabase.from("sales").delete().eq("id", id);
-
-    if (error) {
-      console.log(error);
-      alert("매출 삭제 실패");
-      return;
-    }
-
-    await fetchSales();
-    if (salesEditId === id) resetSalesForm();
-  };
-
-  const toggleScheduleDone = async (item) => {
-    const { error } = await supabase
-      .from("schedules")
-      .update({ is_done: !item.is_done })
-      .eq("id", item.id);
-
-    if (error) {
-      console.log(error);
-      alert("완료 상태 변경 실패");
-      return;
-    }
-
-    await fetchSchedules();
-  };
-
-  const totalExpense = useMemo(() => {
-    return list
-      .filter((i) => i.type === "지출")
-      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
-  }, [list]);
-
-  const totalIncome = useMemo(() => {
-    return list
-      .filter((i) => i.type === "수입")
-      .reduce((sum, i) => sum + Number(i.amount || 0), 0);
-  }, [list]);
-
-  const filteredList = useMemo
+const barFill = {
+  height: "100%",
+  background: "pink",
+};
