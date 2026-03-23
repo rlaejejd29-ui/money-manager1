@@ -471,7 +471,10 @@ export default function App() {
     });
 
     return Object.entries(map)
-      .map(([category, amount]) => ({ category, amount }))
+      .map(([categoryName, categoryAmount]) => ({
+        category: categoryName,
+        amount: categoryAmount,
+      }))
       .sort((a, b) => b.amount - a.amount);
   }, [reportList]);
 
@@ -561,6 +564,10 @@ export default function App() {
 
   const weekNames = ["일", "월", "화", "수", "목", "금", "토"];
 
+  const totalSalesAll = useMemo(() => {
+    return salesList.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [salesList]);
+
   const filteredSales = useMemo(() => {
     return salesList
       .filter((item) => {
@@ -570,10 +577,6 @@ export default function App() {
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [salesList, salesFilterYear, salesFilterMonth]);
 
-  const totalSalesAmount = useMemo(() => {
-    return filteredSales.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-  }, [filteredSales]);
-
   const salesByClient = useMemo(() => {
     const map = {};
     filteredSales.forEach((item) => {
@@ -582,9 +585,9 @@ export default function App() {
     });
 
     return Object.entries(map)
-      .map(([clientName, salesAmount]) => ({
+      .map(([clientName, clientAmount]) => ({
         client: clientName,
-        amount: salesAmount,
+        amount: clientAmount,
       }))
       .sort((a, b) => b.amount - a.amount);
   }, [filteredSales]);
@@ -657,10 +660,10 @@ export default function App() {
 
       {menu === "sales" && (
         <div style={{ display: "flex", gap: 20 }}>
-          <div style={salesCard}>
-            {salesFilterYear}년 {Number(salesFilterMonth)}월 총매출
+          <div style={salesTopCard}>
+            전체 총매출
             <br />
-            <b>{totalSalesAmount.toLocaleString()}원</b>
+            <b>{totalSalesAll.toLocaleString()}원</b>
           </div>
         </div>
       )}
@@ -1163,7 +1166,7 @@ export default function App() {
 
       {menu === "sales" && (
         <>
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
             <select
               value={salesFilterYear}
               onChange={(e) => setSalesFilterYear(e.target.value)}
@@ -1276,65 +1279,64 @@ export default function App() {
             </div>
           </div>
 
-          <div style={chartBox}>
-            <h3 style={sectionTitle}>
-              {salesFilterYear}년 {Number(salesFilterMonth)}월 거래처별 매출 그래프
-            </h3>
-
-            {salesByClient.length === 0 ? (
-              <p>데이터가 없습니다.</p>
-            ) : (
-              salesByClient.map((item) => (
-                <div key={item.client} style={{ marginBottom: 16 }}>
-                  <div style={barLabelRow}>
-                    <span>{item.client}</span>
-                    <span>{item.amount.toLocaleString()}원</span>
+          <div style={reportWrap}>
+            <div style={chartBox}>
+              <h3 style={sectionTitle}>거래처별 월 매출 그래프</h3>
+              {salesByClient.length === 0 ? (
+                <p>데이터가 없습니다.</p>
+              ) : (
+                salesByClient.map((item) => (
+                  <div key={item.client} style={{ marginBottom: 14 }}>
+                    <div style={barLabelRow}>
+                      <span>{item.client}</span>
+                      <span>{item.amount.toLocaleString()}원</span>
+                    </div>
+                    <div style={salesBarBg}>
+                      <div
+                        style={{
+                          ...salesBarFill,
+                          width: `${(item.amount / maxSalesClientAmount) * 100}%`,
+                        }}
+                      />
+                    </div>
                   </div>
-                  <div style={salesBarBg}>
-                    <div
-                      style={{
-                        ...salesBarFill,
-                        width: `${(item.amount / maxSalesClientAmount) * 100}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                ))
+              )}
+            </div>
 
-          <div style={chartBox}>
-            <h3 style={sectionTitle}>거래처별 월 매출 합계</h3>
-            <table style={table}>
-              <thead>
-                <tr>
-                  <th style={th}>거래처명</th>
-                  <th style={th}>매출 합계</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salesByClient.length === 0 ? (
+            <div style={chartBox}>
+              <h3 style={sectionTitle}>거래처별 월 매출 표</h3>
+              <table style={table}>
+                <thead>
                   <tr>
-                    <td style={td} colSpan={2}>
-                      데이터가 없습니다.
-                    </td>
+                    <th style={th}>거래처명</th>
+                    <th style={th}>매출 합계</th>
                   </tr>
-                ) : (
-                  salesByClient.map((item) => (
-                    <tr key={item.client}>
-                      <td style={td}>{item.client}</td>
-                      <td style={{ ...td, background: "#dbeafe", fontWeight: "bold" }}>
-                        {item.amount.toLocaleString()}원
+                </thead>
+                <tbody>
+                  {salesByClient.length === 0 ? (
+                    <tr>
+                      <td style={td} colSpan={2}>
+                        데이터가 없습니다.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    salesByClient.map((item) => (
+                      <tr key={item.client}>
+                        <td style={td}>{item.client}</td>
+                        <td style={{ ...td, background: "#dbeafe", fontWeight: "bold" }}>
+                          {item.amount.toLocaleString()}원
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div style={chartBox}>
-            <h3 style={sectionTitle}>월별 전체 매출 내역</h3>
+            <h3 style={sectionTitle}>월별 전체 내역</h3>
             <table style={table}>
               <thead>
                 <tr>
@@ -1510,11 +1512,12 @@ const cardPink = {
   flex: 1,
 };
 
-const salesCard = {
+const salesTopCard = {
   background: "#ede9fe",
   padding: 30,
   borderRadius: 15,
   flex: 1,
+  textAlign: "center",
   color: "#5b21b6",
 };
 
@@ -1582,7 +1585,7 @@ const barFill = {
 
 const salesBarBg = {
   width: "100%",
-  height: 20,
+  height: 18,
   background: "#f3f4f6",
   borderRadius: 999,
   overflow: "hidden",
