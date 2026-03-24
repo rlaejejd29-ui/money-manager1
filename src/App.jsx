@@ -577,6 +577,10 @@ export default function App() {
       .sort((a, b) => new Date(a.date) - new Date(b.date));
   }, [salesList, salesFilterYear, salesFilterMonth]);
 
+  const totalSalesAmount = useMemo(() => {
+    return filteredSales.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  }, [filteredSales]);
+
   const salesByClient = useMemo(() => {
     const map = {};
     filteredSales.forEach((item) => {
@@ -664,6 +668,11 @@ export default function App() {
             전체 총매출
             <br />
             <b>{totalSalesAll.toLocaleString()}원</b>
+          </div>
+          <div style={salesMonthCard}>
+            {salesFilterYear}년 {Number(salesFilterMonth)}월 총매출
+            <br />
+            <b>{totalSalesAmount.toLocaleString()}원</b>
           </div>
         </div>
       )}
@@ -1521,6 +1530,15 @@ const salesTopCard = {
   color: "#5b21b6",
 };
 
+const salesMonthCard = {
+  background: "#dbeafe",
+  padding: 30,
+  borderRadius: 15,
+  flex: 1,
+  textAlign: "center",
+  color: "#1d4ed8",
+};
+
 const reportCardBlue = {
   background: "#dbeafe",
   padding: 24,
@@ -1730,4 +1748,4 @@ const selectedDateCard = {
   padding: 20,
   borderRadius: 15,
   marginTop: 20,
-};
+}; 
