@@ -3,6 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   const [menu, setMenu] = useState("manage");
   const [list, setList] = useState([]);
   const [scheduleList, setScheduleList] = useState([]);
@@ -40,9 +46,9 @@ export default function App() {
 
   const [scheduleTitle, setScheduleTitle] = useState("");
   const [scheduleContent, setScheduleContent] = useState("");
-  const [scheduleYear, setScheduleYear] = useState(todayYear);
-  const [scheduleMonth, setScheduleMonth] = useState(todayMonth);
-  const [scheduleDay, setScheduleDay] = useState(todayDay);
+  const [scheduleYearInput, setScheduleYearInput] = useState(todayYear);
+  const [scheduleMonthInput, setScheduleMonthInput] = useState(todayMonth);
+  const [scheduleDayInput, setScheduleDayInput] = useState(todayDay);
   const [scheduleEditId, setScheduleEditId] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
@@ -50,9 +56,9 @@ export default function App() {
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth() + 1);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayString);
 
-  const [salesYear, setSalesYear] = useState(todayYear);
-  const [salesMonth, setSalesMonth] = useState(todayMonth);
-  const [salesDay, setSalesDay] = useState(todayDay);
+  const [salesYearInput, setSalesYearInput] = useState(todayYear);
+  const [salesMonthInput, setSalesMonthInput] = useState(todayMonth);
+  const [salesDayInput, setSalesDayInput] = useState(todayDay);
   const [salesClient, setSalesClient] = useState("");
   const [salesItemName, setSalesItemName] = useState("");
   const [salesAmount, setSalesAmount] = useState("");
@@ -68,7 +74,76 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    const initSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setSession(session || null);
+    };
+
+    initSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      alert("이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    if (authMode === "login") {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword,
+      });
+
+      setAuthLoading(false);
+
+      if (error) {
+        alert(error.message || "로그인 실패");
+        return;
+      }
+
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPassword,
+    });
+
+    setAuthLoading(false);
+
+    if (error) {
+      alert(error.message || "회원가입 실패");
+      return;
+    }
+
+    alert("회원가입이 완료되었습니다. 이메일 인증이 켜져 있으면 메일도 확인해주세요.");
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert("로그아웃 실패");
+      return;
+    }
+    setMenu("manage");
+  };
+
   const fetchData = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("money")
       .select("*")
@@ -85,6 +160,8 @@ export default function App() {
   };
 
   const fetchSchedules = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("schedules")
       .select("*")
@@ -101,6 +178,8 @@ export default function App() {
   };
 
   const fetchSales = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("sales")
       .select("*")
@@ -117,10 +196,17 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!session) {
+      setList([]);
+      setScheduleList([]);
+      setSalesList([]);
+      return;
+    }
+
     fetchData();
     fetchSchedules();
     fetchSales();
-  }, []);
+  }, [session]);
 
   const resetForm = () => {
     setText("");
@@ -129,9 +215,9 @@ export default function App() {
     setType("지출");
     setCategory("식비");
     setPayment("현대카드");
-    setYear("2026");
-    setMonth("01");
-    setDay("01");
+    setYearInput("2026");
+    setMonthInput("01");
+    setDayInput("01");
     setEditId(null);
   };
 
@@ -139,9 +225,9 @@ export default function App() {
     setScheduleTitle("");
     setScheduleContent("");
     const [y, m, d] = selectedScheduleDate.split("-");
-    setScheduleYear(y);
-    setScheduleMonth(m);
-    setScheduleDay(d);
+    setScheduleYearInput(y);
+    setScheduleMonthInput(m);
+    setScheduleDayInput(d);
     setScheduleEditId(null);
   };
 
@@ -150,7 +236,7 @@ export default function App() {
     setSalesItemName("");
     setSalesAmount("");
     setSalesMemo("");
-    setSalesYear(todayYear);
+    setSalesYearInput(todayYear);
     setSalesMonthInput(todayMonth);
     setSalesDayInput(todayDay);
     setSalesEditId(null);
@@ -614,35 +700,32 @@ export default function App() {
     <div style={container}>
       <h1 style={title}>📊 기업 자금 관리 시스템</h1>
 
-     <div style={menuWrap}>
-  <button
-    onClick={() => setMenu("manage")}
-    style={menu === "manage" ? activeMenuButton : menuButton}
-  >
-    내역 관리
-  </button>
-
-  <button
-    onClick={() => setMenu("report")}
-    style={menu === "report" ? activeMenuButton : menuButton}
-  >
-    월별 리포트
-  </button>
-
-  <button
-    onClick={() => setMenu("schedule")}
-    style={menu === "schedule" ? activeMenuButton : menuButton}
-  >
-    일정 관리
-  </button>
-
-  <button
-    onClick={() => setMenu("sales")}
-    style={menu === "sales" ? activeMenuButton : menuButton}
-  >
-    매출 관리
-  </button>
-</div>
+      <div style={menuWrap}>
+        <button
+          onClick={() => setMenu("manage")}
+          style={menu === "manage" ? activeMenuButton : menuButton}
+        >
+          내역 관리
+        </button>
+        <button
+          onClick={() => setMenu("report")}
+          style={menu === "report" ? activeMenuButton : menuButton}
+        >
+          월별 리포트
+        </button>
+        <button
+          onClick={() => setMenu("schedule")}
+          style={menu === "schedule" ? activeMenuButton : menuButton}
+        >
+          일정 관리
+        </button>
+        <button
+          onClick={() => setMenu("sales")}
+          style={menu === "sales" ? activeMenuButton : menuButton}
+        >
+          매출 관리
+        </button>
+      </div>
 
       {(menu === "manage" || menu === "report") && (
         <div style={{ display: "flex", gap: 20 }}>
@@ -660,13 +743,7 @@ export default function App() {
       )}
 
       {menu === "schedule" && (
-        <div
-  style={{
-    display: "flex",
-    gap: 20,
-    flexWrap: "wrap",
-  }}
->
+        <div style={{ display: "flex", gap: 20 }}>
           <div style={cardBlue}>
             진행 중 일정
             <br />
@@ -1415,13 +1492,11 @@ export default function App() {
 }
 
 const container = {
-  padding: 20,
+  padding: 40,
   background: "#fef6f9",
   minHeight: "100vh",
   color: "#374151",
   fontFamily: "sans-serif",
-  maxWidth: 1200,
-  margin: "0 auto",
 };
 
 const title = {
@@ -1453,7 +1528,7 @@ const activeMenuButton = {
 
 const box = {
   background: "#f0fdf4",
-  padding: 16,
+  padding: 20,
   borderRadius: 15,
   display: "grid",
   gap: 10,
@@ -1465,16 +1540,17 @@ const input = {
   borderRadius: 10,
   border: "1px solid #ddd",
   background: "#fff",
-  color: "#374151", // 👈 이거 추가 (어두운 회색)
+  color: "#374151",
 };
 
 const button = {
-  padding: 14,
+  padding: 12,
   background: "#a5b4fc",
   border: "none",
   borderRadius: 10,
   cursor: "pointer",
-  fontSize: 16,
+  color: "#374151",
+  fontWeight: "bold",
 };
 
 const subButton = {
@@ -1581,7 +1657,7 @@ const reportCardPurple = {
 
 const reportWrap = {
   display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+  gridTemplateColumns: "1fr 1fr",
   gap: 20,
   marginTop: 20,
 };
@@ -1641,8 +1717,6 @@ const table = {
   color: "#374151",
   borderCollapse: "collapse",
   border: "1px solid #d1d5db",
-  display: "block",
-  overflowX: "auto",
 };
 
 const th = {
@@ -1769,4 +1843,4 @@ const selectedDateCard = {
   padding: 20,
   borderRadius: 15,
   marginTop: 20,
-}; 
+}; 이걸로
