@@ -40,9 +40,9 @@ export default function App() {
 
   const [scheduleTitle, setScheduleTitle] = useState("");
   const [scheduleContent, setScheduleContent] = useState("");
-  const [scheduleYearInput, setScheduleYearInput] = useState(todayYear);
-  const [scheduleMonthInput, setScheduleMonthInput] = useState(todayMonth);
-  const [scheduleDayInput, setScheduleDayInput] = useState(todayDay);
+  const [scheduleYear, setScheduleYear] = useState(todayYear);
+  const [scheduleMonth, setScheduleMonth] = useState(todayMonth);
+  const [scheduleDay, setScheduleDay] = useState(todayDay);
   const [scheduleEditId, setScheduleEditId] = useState(null);
   const [scheduleLoading, setScheduleLoading] = useState(false);
 
@@ -50,9 +50,9 @@ export default function App() {
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth() + 1);
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(todayString);
 
-  const [salesYearInput, setSalesYearInput] = useState(todayYear);
-  const [salesMonthInput, setSalesMonthInput] = useState(todayMonth);
-  const [salesDayInput, setSalesDayInput] = useState(todayDay);
+  const [salesYear, setSalesYear] = useState(todayYear);
+  const [salesMonth, setSalesMonth] = useState(todayMonth);
+  const [salesDay, setSalesDay] = useState(todayDay);
   const [salesClient, setSalesClient] = useState("");
   const [salesItemName, setSalesItemName] = useState("");
   const [salesAmount, setSalesAmount] = useState("");
@@ -129,9 +129,9 @@ export default function App() {
     setType("지출");
     setCategory("식비");
     setPayment("현대카드");
-    setYearInput("2026");
-    setMonthInput("01");
-    setDayInput("01");
+    setYear("2026");
+    setMonth("01");
+    setDay("01");
     setEditId(null);
   };
 
@@ -139,9 +139,9 @@ export default function App() {
     setScheduleTitle("");
     setScheduleContent("");
     const [y, m, d] = selectedScheduleDate.split("-");
-    setScheduleYearInput(y);
-    setScheduleMonthInput(m);
-    setScheduleDayInput(d);
+    setScheduleYear(y);
+    setScheduleMonth(m);
+    setScheduleDay(d);
     setScheduleEditId(null);
   };
 
@@ -150,7 +150,7 @@ export default function App() {
     setSalesItemName("");
     setSalesAmount("");
     setSalesMemo("");
-    setSalesYearInput(todayYear);
+    setSalesYear(todayYear);
     setSalesMonthInput(todayMonth);
     setSalesDayInput(todayDay);
     setSalesEditId(null);
@@ -1458,11 +1458,11 @@ const box = {
 };
 
 const input = {
-  padding: 14,
+  padding: 12,
   borderRadius: 10,
   border: "1px solid #ddd",
   background: "#fff",
-  fontSize: 16, // 👈 중요 (iOS 확대 방지)
+  color: "#374151", // 👈 이거 추가 (어두운 회색)
 };
 
 const button = {
