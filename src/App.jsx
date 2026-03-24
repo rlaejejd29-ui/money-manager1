@@ -1,19 +1,15 @@
-import React from "react";
+mport React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
-  const [session, setSession] = useState(null);
-  const [authMode, setAuthMode] = useState("login");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-
   const [menu, setMenu] = useState("manage");
   const [list, setList] = useState([]);
   const [scheduleList, setScheduleList] = useState([]);
   const [salesList, setSalesList] = useState([]);
-  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const [windowWidth, setWindowWidth] = useState(
+    typeof window !== "undefined" ? window.innerWidth : 1024
+  );
 
   const isMobile = windowWidth <= 768;
 
