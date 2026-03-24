@@ -657,7 +657,13 @@ export default function App() {
       )}
 
       {menu === "schedule" && (
-        <div style={{ display: "flex", gap: 20 }}>
+        <div
+  style={{
+    display: "flex",
+    gap: 20,
+    flexWrap: "wrap",
+  }}
+>
           <div style={cardBlue}>
             진행 중 일정
             <br />
@@ -1406,11 +1412,13 @@ export default function App() {
 }
 
 const container = {
-  padding: 40,
+  padding: 20,
   background: "#fef6f9",
   minHeight: "100vh",
   color: "#374151",
   fontFamily: "sans-serif",
+  maxWidth: 1200,
+  margin: "0 auto",
 };
 
 const title = {
@@ -1442,7 +1450,7 @@ const activeMenuButton = {
 
 const box = {
   background: "#f0fdf4",
-  padding: 20,
+  padding: 16,
   borderRadius: 15,
   display: "grid",
   gap: 10,
@@ -1450,21 +1458,20 @@ const box = {
 };
 
 const input = {
-  padding: 12,
+  padding: 14,
   borderRadius: 10,
   border: "1px solid #ddd",
   background: "#fff",
-  color: "#374151",
+  fontSize: 16, // 👈 중요 (iOS 확대 방지)
 };
 
 const button = {
-  padding: 12,
+  padding: 14,
   background: "#a5b4fc",
   border: "none",
   borderRadius: 10,
   cursor: "pointer",
-  color: "#374151",
-  fontWeight: "bold",
+  fontSize: 16,
 };
 
 const subButton = {
@@ -1571,7 +1578,7 @@ const reportCardPurple = {
 
 const reportWrap = {
   display: "grid",
-  gridTemplateColumns: "1fr 1fr",
+  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
   gap: 20,
   marginTop: 20,
 };
@@ -1631,6 +1638,8 @@ const table = {
   color: "#374151",
   borderCollapse: "collapse",
   border: "1px solid #d1d5db",
+  display: "block",
+  overflowX: "auto",
 };
 
 const th = {
