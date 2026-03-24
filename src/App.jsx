@@ -614,32 +614,35 @@ export default function App() {
     <div style={container}>
       <h1 style={title}>📊 기업 자금 관리 시스템</h1>
 
-      <div style={menuWrap}>
-        <button
-          onClick={() => setMenu("manage")}
-          style={menu === "manage" ? activeMenuButton : menuButton}
-        >
-          내역 관리
-        </button>
-        <button
-          onClick={() => setMenu("report")}
-          style={menu === "report" ? activeMenuButton : menuButton}
-        >
-          월별 리포트
-        </button>
-        <button
-          onClick={() => setMenu("schedule")}
-          style={menu === "schedule" ? activeMenuButton : menuButton}
-        >
-          일정 관리
-        </button>
-        <button
-          onClick={() => setMenu("sales")}
-          style={menu === "sales" ? activeMenuButton : menuButton}
-        >
-          매출 관리
-        </button>
-      </div>
+     <div style={menuWrap}>
+  <button
+    onClick={() => setMenu("manage")}
+    style={menu === "manage" ? activeMenuButton : menuButton}
+  >
+    내역 관리
+  </button>
+
+  <button
+    onClick={() => setMenu("report")}
+    style={menu === "report" ? activeMenuButton : menuButton}
+  >
+    월별 리포트
+  </button>
+
+  <button
+    onClick={() => setMenu("schedule")}
+    style={menu === "schedule" ? activeMenuButton : menuButton}
+  >
+    일정 관리
+  </button>
+
+  <button
+    onClick={() => setMenu("sales")}
+    style={menu === "sales" ? activeMenuButton : menuButton}
+  >
+    매출 관리
+  </button>
+</div>
 
       {(menu === "manage" || menu === "report") && (
         <div style={{ display: "flex", gap: 20 }}>
