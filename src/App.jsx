@@ -1843,4 +1843,4 @@ const selectedDateCard = {
   padding: 20,
   borderRadius: 15,
   marginTop: 20,
-}; 이걸로
+}; 
