@@ -3,6 +3,12 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "./supabase";
 
 export default function App() {
+  const [session, setSession] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+
   const [menu, setMenu] = useState("manage");
   const [list, setList] = useState([]);
   const [scheduleList, setScheduleList] = useState([]);
@@ -68,7 +74,76 @@ export default function App() {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  useEffect(() => {
+    const initSession = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      setSession(session || null);
+    };
+
+    initSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleAuth = async () => {
+    if (!authEmail.trim() || !authPassword.trim()) {
+      alert("이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    setAuthLoading(true);
+
+    if (authMode === "login") {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password: authPassword,
+      });
+
+      setAuthLoading(false);
+
+      if (error) {
+        alert(error.message || "로그인 실패");
+        return;
+      }
+
+      return;
+    }
+
+    const { error } = await supabase.auth.signUp({
+      email: authEmail,
+      password: authPassword,
+    });
+
+    setAuthLoading(false);
+
+    if (error) {
+      alert(error.message || "회원가입 실패");
+      return;
+    }
+
+    alert("회원가입이 완료되었습니다. 이메일 인증이 켜져 있으면 메일도 확인해주세요.");
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      alert("로그아웃 실패");
+      return;
+    }
+    setMenu("manage");
+  };
+
   const fetchData = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("money")
       .select("*")
@@ -85,6 +160,8 @@ export default function App() {
   };
 
   const fetchSchedules = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("schedules")
       .select("*")
@@ -101,6 +178,8 @@ export default function App() {
   };
 
   const fetchSales = async () => {
+    if (!session) return;
+
     const { data, error } = await supabase
       .from("sales")
       .select("*")
@@ -117,10 +196,17 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!session) {
+      setList([]);
+      setScheduleList([]);
+      setSalesList([]);
+      return;
+    }
+
     fetchData();
     fetchSchedules();
     fetchSales();
-  }, []);
+  }, [session]);
 
   const resetForm = () => {
     setText("");
@@ -1757,4 +1843,4 @@ const selectedDateCard = {
   padding: 20,
   borderRadius: 15,
   marginTop: 20,
-}; 
+}; 이걸로
