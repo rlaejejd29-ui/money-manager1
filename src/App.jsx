@@ -29,6 +29,12 @@ export default function App() {
   const [editId, setEditId] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreview, setReceiptPreview] = useState("");
+  const [existingReceiptUrl, setExistingReceiptUrl] = useState("");
+  const [existingReceiptPath, setExistingReceiptPath] = useState("");
+  const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
+
   const today = new Date();
   const todayYear = String(today.getFullYear());
   const todayMonth = String(today.getMonth() + 1).padStart(2, "0");
@@ -113,7 +119,88 @@ export default function App() {
     fetchSales();
   }, []);
 
+  useEffect(() => {
+    return () => {
+      if (receiptPreview && receiptPreview.startsWith("blob:")) {
+        URL.revokeObjectURL(receiptPreview);
+      }
+    };
+  }, [receiptPreview]);
+
+  const getReceiptFilePath = (file) => {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const safeDate = new Date().toISOString().replace(/[:.]/g, "-");
+    const random = Math.random().toString(36).slice(2, 10);
+    return `money/${safeDate}-${random}.${ext}`;
+  };
+
+  const uploadReceiptImage = async (file) => {
+    const filePath = getReceiptFilePath(file);
+
+    const { error: uploadError } = await supabase.storage
+      .from("receipts")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data } = supabase.storage.from("receipts").getPublicUrl(filePath);
+
+    return {
+      receipt_url: data.publicUrl,
+      receipt_path: filePath,
+    };
+  };
+
+  const deleteReceiptImage = async (filePath) => {
+    if (!filePath) return;
+
+    const { error } = await supabase.storage.from("receipts").remove([filePath]);
+
+    if (error) {
+      console.log("영수증 파일 삭제 실패:", error);
+    }
+  };
+
+  const handleReceiptChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("이미지 파일만 업로드할 수 있어요.");
+      return;
+    }
+
+    if (receiptPreview && receiptPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(receiptPreview);
+    }
+
+    setReceiptFile(file);
+    setReceiptPreview(URL.createObjectURL(file));
+    setRemoveExistingReceipt(false);
+  };
+
+  const removeReceiptFromForm = () => {
+    if (receiptPreview && receiptPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(receiptPreview);
+    }
+
+    setReceiptFile(null);
+    setReceiptPreview("");
+    if (existingReceiptUrl) {
+      setRemoveExistingReceipt(true);
+    }
+  };
+
   const resetForm = () => {
+    if (receiptPreview && receiptPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(receiptPreview);
+    }
+
     setText("");
     setAmount("");
     setNote("");
@@ -124,6 +211,12 @@ export default function App() {
     setMonthInput("01");
     setDayInput("01");
     setEditId(null);
+
+    setReceiptFile(null);
+    setReceiptPreview("");
+    setExistingReceiptUrl("");
+    setExistingReceiptPath("");
+    setRemoveExistingReceipt(false);
   };
 
   const resetScheduleForm = () => {
@@ -148,15 +241,63 @@ export default function App() {
   };
 
   const addItem = async () => {
-    if (!amount) return;
+    if (!amount) {
+      alert("금액을 입력해주세요.");
+      return;
+    }
 
     const date = `${yearInput}-${monthInput}-${dayInput}`;
     setLoading(true);
 
-    if (editId) {
-      const { error } = await supabase
-        .from("money")
-        .update({
+    try {
+      let finalReceiptUrl = existingReceiptUrl || "";
+      let finalReceiptPath = existingReceiptPath || "";
+
+      if (removeExistingReceipt && existingReceiptPath) {
+        await deleteReceiptImage(existingReceiptPath);
+        finalReceiptUrl = "";
+        finalReceiptPath = "";
+      }
+
+      if (receiptFile) {
+        if (existingReceiptPath) {
+          await deleteReceiptImage(existingReceiptPath);
+        }
+
+        const uploaded = await uploadReceiptImage(receiptFile);
+        finalReceiptUrl = uploaded.receipt_url;
+        finalReceiptPath = uploaded.receipt_path;
+      }
+
+      if (editId) {
+        const { error } = await supabase
+          .from("money")
+          .update({
+            date,
+            type,
+            category,
+            payment,
+            content: text,
+            amount: Number(amount),
+            memo: note,
+            receipt_url: finalReceiptUrl || null,
+            receipt_path: finalReceiptPath || null,
+          })
+          .eq("id", editId);
+
+        if (error) {
+          console.log(error);
+          alert("수정 실패");
+          return;
+        }
+
+        await fetchData();
+        resetForm();
+        return;
+      }
+
+      const { error } = await supabase.from("money").insert([
+        {
           date,
           type,
           category,
@@ -164,44 +305,25 @@ export default function App() {
           content: text,
           amount: Number(amount),
           memo: note,
-        })
-        .eq("id", editId);
-
-      setLoading(false);
+          receipt_url: finalReceiptUrl || null,
+          receipt_path: finalReceiptPath || null,
+        },
+      ]);
 
       if (error) {
         console.log(error);
-        alert("수정 실패");
+        alert("저장 실패");
         return;
       }
 
       await fetchData();
       resetForm();
-      return;
-    }
-
-    const { error } = await supabase.from("money").insert([
-      {
-        date,
-        type,
-        category,
-        payment,
-        content: text,
-        amount: Number(amount),
-        memo: note,
-      },
-    ]);
-
-    setLoading(false);
-
-    if (error) {
+    } catch (error) {
       console.log(error);
-      alert("저장 실패");
-      return;
+      alert("영수증 업로드 또는 저장 중 오류가 발생했어요.");
+    } finally {
+      setLoading(false);
     }
-
-    await fetchData();
-    resetForm();
   };
 
   const addSchedule = async () => {
@@ -325,6 +447,17 @@ export default function App() {
     setType(item.type);
     setCategory(item.category);
     setPayment(item.payment);
+
+    if (receiptPreview && receiptPreview.startsWith("blob:")) {
+      URL.revokeObjectURL(receiptPreview);
+    }
+
+    setReceiptFile(null);
+    setReceiptPreview(item.receipt_url || "");
+    setExistingReceiptUrl(item.receipt_url || "");
+    setExistingReceiptPath(item.receipt_path || "");
+    setRemoveExistingReceipt(false);
+
     setMenu("manage");
   };
 
@@ -355,11 +488,15 @@ export default function App() {
     setMenu("sales");
   };
 
-  const deleteItem = async (id) => {
+  const deleteItem = async (item) => {
     const ok = window.confirm("삭제할까요?");
     if (!ok) return;
 
-    const { error } = await supabase.from("money").delete().eq("id", id);
+    if (item.receipt_path) {
+      await deleteReceiptImage(item.receipt_path);
+    }
+
+    const { error } = await supabase.from("money").delete().eq("id", item.id);
 
     if (error) {
       console.log(error);
@@ -368,7 +505,7 @@ export default function App() {
     }
 
     await fetchData();
-    if (editId === id) resetForm();
+    if (editId === item.id) resetForm();
   };
 
   const deleteSchedule = async (id) => {
@@ -783,6 +920,32 @@ export default function App() {
               style={input}
             />
 
+            <div style={receiptBox}>
+              <div style={receiptLabel}>영수증 사진 첨부</div>
+              <input type="file" accept="image/*" onChange={handleReceiptChange} style={input} />
+
+              {receiptPreview ? (
+                <div style={previewWrap}>
+                  <img src={receiptPreview} alt="영수증 미리보기" style={previewImage} />
+                  <div style={{ display: "flex", gap: 10 }}>
+                    <button type="button" onClick={removeReceiptFromForm} style={subButton}>
+                      사진 제거
+                    </button>
+                    <a
+                      href={receiptPreview}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={linkButton}
+                    >
+                      크게 보기
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                <div style={receiptEmptyText}>첨부된 영수증이 없습니다.</div>
+              )}
+            </div>
+
             <div style={{ display: "flex", gap: 10 }}>
               <button onClick={addItem} style={button} disabled={loading}>
                 {loading ? "저장 중..." : editId ? "수정 저장" : "추가"}
@@ -805,6 +968,7 @@ export default function App() {
                 <th style={th}>내용</th>
                 <th style={th}>금액</th>
                 <th style={th}>비고</th>
+                <th style={th}>영수증</th>
                 <th style={th}>관리</th>
               </tr>
             </thead>
@@ -828,11 +992,28 @@ export default function App() {
                   </td>
                   <td style={td}>{item.memo || "-"}</td>
                   <td style={td}>
+                    {item.receipt_url ? (
+                      <div style={receiptCellWrap}>
+                        <img src={item.receipt_url} alt="영수증" style={receiptThumb} />
+                        <a
+                          href={item.receipt_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          style={receiptLink}
+                        >
+                          보기
+                        </a>
+                      </div>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td style={td}>
                     <div style={{ display: "flex", gap: 6, justifyContent: "center" }}>
                       <button onClick={() => startEdit(item)} style={editButton}>
                         수정
                       </button>
-                      <button onClick={() => deleteItem(item.id)} style={deleteButton}>
+                      <button onClick={() => deleteItem(item)} style={deleteButton}>
                         삭제
                       </button>
                     </div>
@@ -1468,6 +1649,18 @@ const subButton = {
   fontWeight: "bold",
 };
 
+const linkButton = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "12px 16px",
+  background: "#dbeafe",
+  borderRadius: 10,
+  color: "#1d4ed8",
+  textDecoration: "none",
+  fontWeight: "bold",
+};
+
 const editButton = {
   padding: "8px 12px",
   background: "#bfdbfe",
@@ -1748,4 +1941,58 @@ const selectedDateCard = {
   padding: 20,
   borderRadius: 15,
   marginTop: 20,
-}; 
+};
+
+const receiptBox = {
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: 12,
+  padding: 16,
+  display: "grid",
+  gap: 12,
+};
+
+const receiptLabel = {
+  fontWeight: "bold",
+  color: "#374151",
+};
+
+const previewWrap = {
+  display: "grid",
+  gap: 10,
+};
+
+const previewImage = {
+  width: 220,
+  maxWidth: "100%",
+  borderRadius: 12,
+  border: "1px solid #d1d5db",
+  objectFit: "cover",
+};
+
+const receiptEmptyText = {
+  color: "#6b7280",
+  fontSize: 14,
+};
+
+const receiptCellWrap = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "center",
+  gap: 6,
+};
+
+const receiptThumb = {
+  width: 70,
+  height: 70,
+  objectFit: "cover",
+  borderRadius: 8,
+  border: "1px solid #d1d5db",
+};
+
+const receiptLink = {
+  color: "#2563eb",
+  textDecoration: "none",
+  fontWeight: "bold",
+  fontSize: 13,
+};
