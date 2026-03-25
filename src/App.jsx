@@ -33,6 +33,8 @@ export default function App() {
   const [receiptPreview, setReceiptPreview] = useState("");
   const [existingReceiptUrl, setExistingReceiptUrl] = useState("");
   const [existingReceiptPath, setExistingReceiptPath] = useState("");
+  const [existingReceiptName, setExistingReceiptName] = useState("");
+  const [existingReceiptType, setExistingReceiptType] = useState("");
   const [removeExistingReceipt, setRemoveExistingReceipt] = useState(false);
 
   const today = new Date();
@@ -127,14 +129,21 @@ export default function App() {
     };
   }, [receiptPreview]);
 
+  const isPdfFile = (fileType = "", fileName = "") => {
+    return (
+      fileType === "application/pdf" ||
+      String(fileName).toLowerCase().endsWith(".pdf")
+    );
+  };
+
   const getReceiptFilePath = (file) => {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const ext = file.name.split(".").pop()?.toLowerCase() || "dat";
     const safeDate = new Date().toISOString().replace(/[:.]/g, "-");
     const random = Math.random().toString(36).slice(2, 10);
     return `money/${safeDate}-${random}.${ext}`;
   };
 
-  const uploadReceiptImage = async (file) => {
+  const uploadReceiptFile = async (file) => {
     const filePath = getReceiptFilePath(file);
 
     const { error: uploadError } = await supabase.storage
@@ -153,16 +162,18 @@ export default function App() {
     return {
       receipt_url: data.publicUrl,
       receipt_path: filePath,
+      receipt_name: file.name,
+      receipt_type: file.type,
     };
   };
 
-  const deleteReceiptImage = async (filePath) => {
+  const deleteReceiptFile = async (filePath) => {
     if (!filePath) return;
 
     const { error } = await supabase.storage.from("receipts").remove([filePath]);
 
     if (error) {
-      console.log("영수증 파일 삭제 실패:", error);
+      console.log("첨부파일 삭제 실패:", error);
     }
   };
 
@@ -170,8 +181,16 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      alert("이미지 파일만 업로드할 수 있어요.");
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/jpg",
+      "image/webp",
+      "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      alert("이미지(PNG, JPG, WEBP) 또는 PDF 파일만 업로드할 수 있어요.");
       return;
     }
 
@@ -180,7 +199,7 @@ export default function App() {
     }
 
     setReceiptFile(file);
-    setReceiptPreview(URL.createObjectURL(file));
+    setReceiptPreview(isPdfFile(file.type, file.name) ? "" : URL.createObjectURL(file));
     setRemoveExistingReceipt(false);
   };
 
@@ -216,6 +235,8 @@ export default function App() {
     setReceiptPreview("");
     setExistingReceiptUrl("");
     setExistingReceiptPath("");
+    setExistingReceiptName("");
+    setExistingReceiptType("");
     setRemoveExistingReceipt(false);
   };
 
@@ -252,21 +273,27 @@ export default function App() {
     try {
       let finalReceiptUrl = existingReceiptUrl || "";
       let finalReceiptPath = existingReceiptPath || "";
+      let finalReceiptName = existingReceiptName || "";
+      let finalReceiptType = existingReceiptType || "";
 
       if (removeExistingReceipt && existingReceiptPath) {
-        await deleteReceiptImage(existingReceiptPath);
+        await deleteReceiptFile(existingReceiptPath);
         finalReceiptUrl = "";
         finalReceiptPath = "";
+        finalReceiptName = "";
+        finalReceiptType = "";
       }
 
       if (receiptFile) {
         if (existingReceiptPath) {
-          await deleteReceiptImage(existingReceiptPath);
+          await deleteReceiptFile(existingReceiptPath);
         }
 
-        const uploaded = await uploadReceiptImage(receiptFile);
+        const uploaded = await uploadReceiptFile(receiptFile);
         finalReceiptUrl = uploaded.receipt_url;
         finalReceiptPath = uploaded.receipt_path;
+        finalReceiptName = uploaded.receipt_name;
+        finalReceiptType = uploaded.receipt_type;
       }
 
       if (editId) {
@@ -282,6 +309,8 @@ export default function App() {
             memo: note,
             receipt_url: finalReceiptUrl || null,
             receipt_path: finalReceiptPath || null,
+            receipt_name: finalReceiptName || null,
+            receipt_type: finalReceiptType || null,
           })
           .eq("id", editId);
 
@@ -307,6 +336,8 @@ export default function App() {
           memo: note,
           receipt_url: finalReceiptUrl || null,
           receipt_path: finalReceiptPath || null,
+          receipt_name: finalReceiptName || null,
+          receipt_type: finalReceiptType || null,
         },
       ]);
 
@@ -320,7 +351,7 @@ export default function App() {
       resetForm();
     } catch (error) {
       console.log(error);
-      alert("영수증 업로드 또는 저장 중 오류가 발생했어요.");
+      alert("첨부파일 업로드 또는 저장 중 오류가 발생했어요.");
     } finally {
       setLoading(false);
     }
@@ -453,9 +484,13 @@ export default function App() {
     }
 
     setReceiptFile(null);
-    setReceiptPreview(item.receipt_url || "");
+    setReceiptPreview(
+      isPdfFile(item.receipt_type, item.receipt_name) ? "" : item.receipt_url || ""
+    );
     setExistingReceiptUrl(item.receipt_url || "");
     setExistingReceiptPath(item.receipt_path || "");
+    setExistingReceiptName(item.receipt_name || "");
+    setExistingReceiptType(item.receipt_type || "");
     setRemoveExistingReceipt(false);
 
     setMenu("manage");
@@ -493,7 +528,7 @@ export default function App() {
     if (!ok) return;
 
     if (item.receipt_path) {
-      await deleteReceiptImage(item.receipt_path);
+      await deleteReceiptFile(item.receipt_path);
     }
 
     const { error } = await supabase.from("money").delete().eq("id", item.id);
@@ -921,28 +956,59 @@ export default function App() {
             />
 
             <div style={receiptBox}>
-              <div style={receiptLabel}>영수증 사진 첨부</div>
-              <input type="file" accept="image/*" onChange={handleReceiptChange} style={input} />
+              <div style={receiptLabel}>증빙 첨부 (이미지 / PDF)</div>
 
-              {receiptPreview ? (
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/webp,application/pdf"
+                onChange={handleReceiptChange}
+                style={input}
+              />
+
+              {receiptFile ? (
                 <div style={previewWrap}>
-                  <img src={receiptPreview} alt="영수증 미리보기" style={previewImage} />
+                  <div style={fileInfoText}>선택 파일: {receiptFile.name}</div>
+
+                  {isPdfFile(receiptFile.type, receiptFile.name) ? (
+                    <div style={pdfPreviewBox}>📄 PDF 파일 선택됨</div>
+                  ) : (
+                    <img src={receiptPreview} alt="영수증 미리보기" style={previewImage} />
+                  )}
+
                   <div style={{ display: "flex", gap: 10 }}>
                     <button type="button" onClick={removeReceiptFromForm} style={subButton}>
-                      사진 제거
+                      첨부 제거
                     </button>
+                  </div>
+                </div>
+              ) : existingReceiptUrl && !removeExistingReceipt ? (
+                <div style={previewWrap}>
+                  <div style={fileInfoText}>
+                    현재 파일: {existingReceiptName || "첨부파일"}
+                  </div>
+
+                  {isPdfFile(existingReceiptType, existingReceiptName) ? (
+                    <div style={pdfPreviewBox}>📄 저장된 PDF 파일</div>
+                  ) : (
+                    <img src={existingReceiptUrl} alt="영수증 미리보기" style={previewImage} />
+                  )}
+
+                  <div style={{ display: "flex", gap: 10 }}>
                     <a
-                      href={receiptPreview}
+                      href={existingReceiptUrl}
                       target="_blank"
                       rel="noreferrer"
                       style={linkButton}
                     >
-                      크게 보기
+                      파일 열기
                     </a>
+                    <button type="button" onClick={removeReceiptFromForm} style={subButton}>
+                      첨부 제거
+                    </button>
                   </div>
                 </div>
               ) : (
-                <div style={receiptEmptyText}>첨부된 영수증이 없습니다.</div>
+                <div style={receiptEmptyText}>첨부된 파일이 없습니다.</div>
               )}
             </div>
 
@@ -968,7 +1034,7 @@ export default function App() {
                 <th style={th}>내용</th>
                 <th style={th}>금액</th>
                 <th style={th}>비고</th>
-                <th style={th}>영수증</th>
+                <th style={th}>증빙</th>
                 <th style={th}>관리</th>
               </tr>
             </thead>
@@ -994,15 +1060,31 @@ export default function App() {
                   <td style={td}>
                     {item.receipt_url ? (
                       <div style={receiptCellWrap}>
-                        <img src={item.receipt_url} alt="영수증" style={receiptThumb} />
-                        <a
-                          href={item.receipt_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={receiptLink}
-                        >
-                          보기
-                        </a>
+                        {isPdfFile(item.receipt_type, item.receipt_name) ? (
+                          <>
+                            <div style={pdfThumb}>PDF</div>
+                            <a
+                              href={item.receipt_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={receiptLink}
+                            >
+                              열기
+                            </a>
+                          </>
+                        ) : (
+                          <>
+                            <img src={item.receipt_url} alt="영수증" style={receiptThumb} />
+                            <a
+                              href={item.receipt_url}
+                              target="_blank"
+                              rel="noreferrer"
+                              style={receiptLink}
+                            >
+                              보기
+                            </a>
+                          </>
+                        )}
                       </div>
                     ) : (
                       "-"
@@ -1970,6 +2052,23 @@ const previewImage = {
   objectFit: "cover",
 };
 
+const pdfPreviewBox = {
+  width: 220,
+  maxWidth: "100%",
+  padding: 24,
+  borderRadius: 12,
+  border: "1px solid #d1d5db",
+  background: "#f8fafc",
+  textAlign: "center",
+  fontWeight: "bold",
+};
+
+const fileInfoText = {
+  color: "#374151",
+  fontSize: 14,
+  wordBreak: "break-all",
+};
+
 const receiptEmptyText = {
   color: "#6b7280",
   fontSize: 14,
@@ -1988,6 +2087,18 @@ const receiptThumb = {
   objectFit: "cover",
   borderRadius: 8,
   border: "1px solid #d1d5db",
+};
+
+const pdfThumb = {
+  width: 70,
+  height: 70,
+  borderRadius: 8,
+  border: "1px solid #d1d5db",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  background: "#f3f4f6",
+  fontWeight: "bold",
 };
 
 const receiptLink = {
