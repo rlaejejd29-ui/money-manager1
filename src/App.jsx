@@ -917,7 +917,7 @@ export default function App() {
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={input}>
               <option>식자재</option>
               <option>식비</option>
-              <option>숙박비</option>
+              <option>대여비</option>
               <option>소모품비</option>
               <option>교통비</option>
               <option>소프트웨어비</option>
