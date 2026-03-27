@@ -931,7 +931,7 @@ export default function App() {
               <option>현대카드</option>
               <option>국민카드</option>
               <option>현금</option>
-              <option>계좌이체</option>
+              <option>국민은행</option>
             </select>
 
             <input
