@@ -928,6 +928,7 @@ export default function App() {
               <option>숙박비</option>
               <option>카드대금</option>
               <option>기타</option>
+              <option>정산비</option>
             </select>
 
             <select value={payment} onChange={(e) => setPayment(e.target.value)} style={input}>
