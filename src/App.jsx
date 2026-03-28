@@ -874,13 +874,39 @@ const maxIncomeCategoryAmount = useMemo(() => {
 
       {menu === "manage" && (
         <>
-          <div style={{ display: "flex", gap: 10 }}>
-            {isFilterActive && (
+         <div style={{ display: "flex", gap: 10 }}>
+  <select value={year} onChange={(e) => setYear(e.target.value)} style={input}>
+    <option value="">년도</option>
+    <option value="2024">2024</option>
+    <option value="2025">2025</option>
+    <option value="2026">2026</option>
+  </select>
+
+  <select
+    value={selectedMonth}
+    onChange={(e) => setSelectedMonth(e.target.value)}
+    style={input}
+  >
+    <option value="">월</option>
+    {[...Array(12)].map((_, i) => {
+      const m = String(i + 1).padStart(2, "0");
+      return (
+        <option key={m} value={m}>
+          {i + 1}월
+        </option>
+      );
+    })}
+  </select>
+</div>
+
+{/* 🔥 여기로 이동 */}
+{isFilterActive && (
   <div style={{
     background: "#fff3cd",
     padding: "8px 12px",
     borderRadius: 8,
-    fontSize: 13
+    fontSize: 13,
+    marginTop: 8
   }}>
     ⚠️ 현재 필터가 적용되어 일부 데이터만 보이고 있어요
   </div>
@@ -893,6 +919,7 @@ const maxIncomeCategoryAmount = useMemo(() => {
       setSelectedMonth("");
     }}
     style={{
+      marginTop: 8,
       padding: "6px 10px",
       borderRadius: 8,
       background: "#e0e7ff",
@@ -903,30 +930,6 @@ const maxIncomeCategoryAmount = useMemo(() => {
     전체 보기
   </button>
 )}
-            <select value={year} onChange={(e) => setYear(e.target.value)} style={input}>
-              <option value="">년도</option>
-              <option value="2024">2024</option>
-              <option value="2025">2025</option>
-              <option value="2026">2026</option>
-            </select>
-
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              style={input}
-            >
-              <option value="">월</option>
-              {[...Array(12)].map((_, i) => {
-                const m = String(i + 1).padStart(2, "0");
-                return (
-                  <option key={m} value={m}>
-                    {i + 1}월
-                  </option>
-                );
-              })}
-            </select>
-          </div>
-
           <div style={box}>
             <div style={{ display: "flex", gap: 10 }}>
               <select value={yearInput} onChange={(e) => setYearInput(e.target.value)} style={input}>
