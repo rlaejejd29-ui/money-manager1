@@ -125,7 +125,29 @@ console.log("isFilterActive:", isFilterActive);
     fetchSchedules();
     fetchSales();
   }, []);
+useEffect(() => {
+  fetchData();
+  fetchSchedules();
+  fetchSales();
+}, []);
 
+// 🔥 여기다가 넣어 (이 위치 정확함)
+useEffect(() => {
+  const saved = localStorage.getItem("draft");
+  if (saved) {
+    const d = JSON.parse(saved);
+    setText(d.text || "");
+    setAmount(d.amount || "");
+    setNote(d.note || "");
+  }
+}, []);
+
+useEffect(() => {
+  localStorage.setItem(
+    "draft",
+    JSON.stringify({ text, amount, note })
+  );
+}, [text, amount, note]);
   useEffect(() => {
     return () => {
       if (receiptPreview && receiptPreview.startsWith("blob:")) {
