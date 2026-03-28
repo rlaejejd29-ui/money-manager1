@@ -23,7 +23,7 @@ export default function App() {
   const [year, setYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
 
-  const isFilterActive = year || selectedMonth;
+  const isFilterActive = !!year || !!selectedMonth;
 
   const [reportYear, setReportYear] = useState("2025");
   const [reportMonth, setReportMonth] = useState("10");
@@ -898,39 +898,41 @@ const maxIncomeCategoryAmount = useMemo(() => {
     })}
   </select>
 </div>
-
-{/* 🔥 여기로 이동 */}
-{isFilterActive && (
-  <div style={{
-    background: "#fff3cd",
-    padding: "8px 12px",
-    borderRadius: 8,
-    fontSize: 13,
-    marginTop: 8
-  }}>
-    ⚠️ 현재 필터가 적용되어 일부 데이터만 보이고 있어요
-  </div>
-)}
-
-{isFilterActive && (
-  <button
-    onClick={() => {
-      setYear("");
-      setSelectedMonth("");
-    }}
-    style={{
-      marginTop: 8,
-      padding: "6px 10px",
-      borderRadius: 8,
-      background: "#e0e7ff",
-      border: "none",
-      cursor: "pointer"
-    }}
-  >
-    전체 보기
-  </button>
-)}
           <div style={box}>
+
+  {/* 🔥 여기 추가 */}
+  {isFilterActive && (
+    <div style={{
+      background: "#fff3cd",
+      padding: "8px 12px",
+      borderRadius: 8,
+      fontSize: 13,
+      marginBottom: 10
+    }}>
+      ⚠️ 현재 필터가 적용되어 일부 데이터만 보이고 있어요
+    </div>
+  )}
+
+  {isFilterActive && (
+    <button
+      onClick={() => {
+        setYear("");
+        setSelectedMonth("");
+      }}
+      style={{
+        marginBottom: 10,
+        padding: "6px 10px",
+        borderRadius: 8,
+        background: "#e0e7ff",
+        border: "none",
+        cursor: "pointer"
+      }}
+    >
+      전체 보기
+    </button>
+  )}
+
+  {/* 👇 기존 코드 그대로 아래 유지 */}
             <div style={{ display: "flex", gap: 10 }}>
               <select value={yearInput} onChange={(e) => setYearInput(e.target.value)} style={input}>
                 {[2024, 2025, 2026].map((y) => (
