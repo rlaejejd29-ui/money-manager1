@@ -23,7 +23,7 @@ export default function App() {
   const [year, setYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
 
-  const isFilterActive = !!year || !!selectedMonth;
+const isFilterActive = true;
   console.log("year:", year);
 console.log("month:", selectedMonth);
 console.log("isFilterActive:", isFilterActive);
@@ -905,15 +905,15 @@ const maxIncomeCategoryAmount = useMemo(() => {
 
   {/* 🔥 여기 추가 */}
   {isFilterActive && (
-    <div style={{
-      background: "#fff3cd",
-      padding: "8px 12px",
-      borderRadius: 8,
-      fontSize: 13,
-      marginBottom: 10
-    }}>
-      ⚠️ 현재 필터가 적용되어 일부 데이터만 보이고 있어요
-    </div>
+   <div style={{
+  background: "#fff3cd",
+  padding: "8px 12px",
+  borderRadius: 8,
+  fontSize: 13,
+  marginBottom: 10
+}}>
+  📌 필터를 선택하면 해당 내역만 보여요
+</div>
   )}
 
   {isFilterActive && (
