@@ -24,6 +24,9 @@ export default function App() {
   const [selectedMonth, setSelectedMonth] = useState("");
 
   const isFilterActive = !!year || !!selectedMonth;
+  console.log("year:", year);
+console.log("month:", selectedMonth);
+console.log("isFilterActive:", isFilterActive);
 
   const [reportYear, setReportYear] = useState("2025");
   const [reportMonth, setReportMonth] = useState("10");
