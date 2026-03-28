@@ -915,7 +915,6 @@ export default function App() {
             </select>
 
             <select value={category} onChange={(e) => setCategory(e.target.value)} style={input}>
-              <option>정산비</option
               <option>식자재</option>
               <option>식비</option>
               <option>대여비</option>
@@ -927,8 +926,9 @@ export default function App() {
               <option>행정처리비</option>
               <option>숙박비</option>
               <option>카드대금</option>
-              <option>기타</option>
+              <option>카드매출</option>
               <option>정산비</option>
+              <option>기타</option>
             </select>
 
             <select value={payment} onChange={(e) => setPayment(e.target.value)} style={input}>
