@@ -655,6 +655,27 @@ export default function App() {
     return Math.max(...reportCategoryTable.map((item) => item.amount));
   }, [reportCategoryTable]);
 
+  const reportIncomeCategoryTable = useMemo(() => {
+  const map = {};
+  reportList.forEach((item) => {
+    if (item.type === "수입") {
+      map[item.category] = (map[item.category] || 0) + Number(item.amount || 0);
+    }
+  });
+
+  return Object.entries(map)
+    .map(([categoryName, categoryAmount]) => ({
+      category: categoryName,
+      amount: categoryAmount,
+    }))
+    .sort((a, b) => b.amount - a.amount);
+}, [reportList]);
+
+const maxIncomeCategoryAmount = useMemo(() => {
+  if (reportIncomeCategoryTable.length === 0) return 0;
+  return Math.max(...reportIncomeCategoryTable.map((item) => item.amount));
+}, [reportIncomeCategoryTable]);
+
   const undoneScheduleCount = useMemo(() => {
     return scheduleList.filter((item) => !item.is_done).length;
   }, [scheduleList]);
@@ -1176,6 +1197,58 @@ export default function App() {
               )}
             </div>
 
+            <div style={chartBox}>
+  <h3 style={sectionTitle}>카테고리별 수입 그래프</h3>
+  {reportIncomeCategoryTable.length === 0 ? (
+    <p>데이터가 없습니다.</p>
+  ) : (
+    reportIncomeCategoryTable.map((item) => (
+      <div key={item.category} style={{ marginBottom: 14 }}>
+        <div style={barLabelRow}>
+          <span>{item.category}</span>
+          <span>{item.amount.toLocaleString()}원</span>
+        </div>
+        <div style={barBg}>
+          <div
+            style={{
+              ...barFill,
+              width: `${(item.amount / maxIncomeCategoryAmount) * 100}%`,
+              background: "linear-gradient(90deg, #60a5fa, #3b82f6)",
+            }}
+          />
+        </div>
+      </div>
+    ))
+  )}
+</div>
+
+<div style={chartBox}>
+  <h3 style={sectionTitle}>카테고리별 수입 표</h3>
+  <table style={table}>
+    <thead>
+      <tr>
+        <th style={th}>카테고리</th>
+        <th style={th}>수입 합계</th>
+      </tr>
+    </thead>
+    <tbody>
+      {reportIncomeCategoryTable.length === 0 ? (
+        <tr>
+          <td style={td} colSpan={2}>데이터 없음</td>
+        </tr>
+      ) : (
+        reportIncomeCategoryTable.map((item) => (
+          <tr key={item.category}>
+            <td style={td}>{item.category}</td>
+            <td style={{ ...td, fontWeight: "bold", color: "#2563eb" }}>
+              {item.amount.toLocaleString()}원
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>
             <div style={chartBox}>
               <h3 style={sectionTitle}>카테고리별 지출 표</h3>
               <table style={table}>
