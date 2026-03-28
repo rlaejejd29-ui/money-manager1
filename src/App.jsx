@@ -23,6 +23,8 @@ export default function App() {
   const [year, setYear] = useState("");
   const [selectedMonth, setSelectedMonth] = useState("");
 
+  const isFilterActive = year || selectedMonth;
+
   const [reportYear, setReportYear] = useState("2025");
   const [reportMonth, setReportMonth] = useState("10");
 
@@ -873,6 +875,34 @@ const maxIncomeCategoryAmount = useMemo(() => {
       {menu === "manage" && (
         <>
           <div style={{ display: "flex", gap: 10 }}>
+            {isFilterActive && (
+  <div style={{
+    background: "#fff3cd",
+    padding: "8px 12px",
+    borderRadius: 8,
+    fontSize: 13
+  }}>
+    ⚠️ 현재 필터가 적용되어 일부 데이터만 보이고 있어요
+  </div>
+)}
+
+{isFilterActive && (
+  <button
+    onClick={() => {
+      setYear("");
+      setSelectedMonth("");
+    }}
+    style={{
+      padding: "6px 10px",
+      borderRadius: 8,
+      background: "#e0e7ff",
+      border: "none",
+      cursor: "pointer"
+    }}
+  >
+    전체 보기
+  </button>
+)}
             <select value={year} onChange={(e) => setYear(e.target.value)} style={input}>
               <option value="">년도</option>
               <option value="2024">2024</option>
@@ -1066,7 +1096,21 @@ const maxIncomeCategoryAmount = useMemo(() => {
             </thead>
 
             <tbody>
-              {filteredList.map((item) => (
+  {filteredList.length === 0 ? (
+    <tr>
+      <td colSpan="9" style={{ padding: 20, textAlign: "center" }}>
+        {isFilterActive ? (
+          <>
+            📂 조건에 맞는 데이터가 없어요 <br />
+            👉 "전체 보기"를 눌러보세요!
+          </>
+        ) : (
+          <>📭 아직 등록된 내역이 없어요</>
+        )}
+      </td>
+    </tr>
+  ) : (
+    filteredList.map((item) => (
                 <tr key={item.id}>
                   <td style={td}>{item.date}</td>
                   <td style={td}>{item.type}</td>
